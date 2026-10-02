@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ID Admin</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,sans-serif;background:#0f1115;color:#e8e8e8}
+  .wrap{max-width:900px;margin:0 auto;padding:24px 16px}
+  .card{background:#181b22;border:1px solid #262a33;border-radius:12px;padding:20px;margin-bottom:20px}
+  h1,h2{margin:0 0 14px}
+  label{display:block;font-size:13px;color:#9aa0ab;margin:10px 0 4px}
+  input{width:100%;padding:10px;border-radius:8px;border:1px solid #2d323d;background:#0f1115;color:#fff}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+  @media(max-width:600px){.grid{grid-template-columns:1fr}}
+  button{padding:10px 16px;border:0;border-radius:8px;background:#4f8cff;color:#fff;font-weight:600;cursor:pointer;margin-top:14px}
+  button.alt{background:#2a2f3a;margin:0 6px 0 0;padding:7px 12px;font-size:13px}
+  button.del{background:#c0392b}
+  .row{border-top:1px solid #262a33;padding:14px 0}
+  .row:first-child{border-top:0}
+  .muted{color:#9aa0ab;font-size:13px}
+  .qr{margin-top:10px;background:#fff;display:inline-block;padding:10px;border-radius:8px}
+  #msg,#loginMsg{font-size:14px;margin-top:10px}
+  .hide{display:none}
+  .top{display:flex;justify-content:space-between;align-items:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- LOGIN -->
+  <div id="loginView" class="card hide" style="max-width:380px;margin:60px auto">
+    <h1>Admin Login</h1>
+    <label>Username</label><input id="user" autocomplete="username">
+    <label>Password</label><input id="pass" type="password" autocomplete="current-password">
+    <button id="loginBtn">Log in</button>
+    <div id="loginMsg"></div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashView" class="hide">
+    <div class="top"><h1>Employee IDs</h1><button class="alt" id="logoutBtn">Log out</button></div>
+
+    <div class="card">
+      <h2>Add new employee</h2>
+      <div class="grid">
+        <div><label>Name</label><input id="name"></div>
+        <div><label>Position</label><input id="position"></div>
+        <div><label>Employee ID no.</label><input id="empNo"></div>
+        <div><label>Contact number</label><input id="contact"></div>
+        <div><label>Email</label><input id="email" type="email"></div>
+        <div><label>Facebook link (optional)</label><input id="fb"></div>
+        <div><label>Instagram link (optional)</label><input id="ig"></div>
+      </div>
+      <h2 style="margin-top:22px;font-size:16px">Emergency contact</h2>
+      <div class="grid">
+        <div><label>Name</label><input id="emName"></div>
+        <div><label>Number</label><input id="emNumber"></div>
+      </div>
+      <label>Address</label><input id="emAddress">
+      <button id="saveBtn">Save employee</button>
+      <div id="msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>All employees</h2>
+      <div id="list" class="muted">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// 1) PASTE YOUR FIREBASE CONFIG HERE
+const firebaseConfig = {
+  apiKey: "AIzaSyBOkCr3q-uffiQ1ZxQobJ1STcT0bIeX5-A",
+  authDomain: "employee-id-9e266.firebaseapp.com",
+  projectId: "employee-id-9e266",
+  storageBucket: "employee-id-9e266.firebasestorage.app",
+  messagingSenderId: "643071537505",
+  appId: "1:643071537505:web:5cde806f56b9bd0f531520",
+  measurementId: "G-WKF5VG8F0X"
+};
+
+// Username is turned into an email for Firebase Auth, e.g. admingian@id.local
+const EMAIL_DOMAIN = "id.local";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const $ = id => document.getElementById(id);
+
+let unsub = null;
+
+onAuthStateChanged(auth, user => {
+  $("loginView").classList.toggle("hide", !!user);
+  $("dashView").classList.toggle("hide", !user);
+  if (user) loadList(); else if (unsub) unsub();
+});
+
+$("loginBtn").onclick = async () => {
+  $("loginMsg").textContent = "";
+  try {
+    await signInWithEmailAndPassword(auth, $("user").value.trim() + "@" + EMAIL_DOMAIN, $("pass").value);
+  } catch (e) { $("loginMsg").textContent = "Wrong username or password."; }
+};
+$("logoutBtn").onclick = () => signOut(auth);
+
+$("saveBtn").onclick = async () => {
+  const data = {
+    name: $("name").value.trim(),
+    position: $("position").value.trim(),
+    empNo: $("empNo").value.trim(),
+    contact: $("contact").value.trim(),
+    email: $("email").value.trim(),
+    fb: $("fb").value.trim(),
+    ig: $("ig").value.trim(),
+    emName: $("emName").value.trim(),
+    emNumber: $("emNumber").value.trim(),
+    emAddress: $("emAddress").value.trim(),
+    createdAt: serverTimestamp()
+  };
+  if (!data.name || !data.position || !data.empNo || !data.contact || !data.email ||
+      !data.emName || !data.emNumber || !data.emAddress) {
+    $("msg").textContent = "Fill in all required fields."; return;
+  }
+  try {
+    await addDoc(collection(db, "employees"), data);
+    document.querySelectorAll("#dashView input").forEach(i => i.value = "");
+    $("msg").textContent = "Saved!";
+  } catch (e) { $("msg").textContent = "Error: " + e.message; }
+};
+
+function employeeLink(id) {
+  return new URL("employee.html?id=" + id, location.href).href;
+}
+
+function loadList() {
+  unsub = onSnapshot(query(collection(db, "employees"), orderBy("createdAt", "desc")), snap => {
+    const list = $("list");
+    list.innerHTML = "";
+    if (snap.empty) { list.textContent = "No employees yet."; return; }
+    snap.forEach(d => {
+      const e = d.data(), link = employeeLink(d.id);
+      const row = document.createElement("div");
+      row.className = "row";
+
+      const title = document.createElement("div");
+      title.innerHTML = "<b></b> <span class='muted'></span>";
+      title.querySelector("b").textContent = e.name;
+      title.querySelector("span").textContent = " · " + e.position + " · " + e.empNo;
+
+      const linkEl = document.createElement("div");
+      linkEl.className = "muted";
+      linkEl.style.margin = "4px 0 8px";
+      linkEl.style.wordBreak = "break-all";
+      linkEl.textContent = link;
+
+      const qrBox = document.createElement("div");
+
+      const bCopy = document.createElement("button");
+      bCopy.className = "alt"; bCopy.textContent = "Copy link";
+      bCopy.onclick = () => { navigator.clipboard.writeText(link); bCopy.textContent = "Copied"; setTimeout(() => bCopy.textContent = "Copy link", 1200); };
+
+      const bQr = document.createElement("button");
+      bQr.className = "alt"; bQr.textContent = "Show QR";
+      bQr.onclick = () => {
+        if (qrBox.firstChild) { qrBox.innerHTML = ""; bQr.textContent = "Show QR"; return; }
+        const holder = document.createElement("div");
+        holder.className = "qr";
+        new QRCode(holder, { text: link, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+        const bDl = document.createElement("button");
+        bDl.className = "alt"; bDl.style.marginTop = "8px"; bDl.textContent = "Download PNG";
+        bDl.onclick = () => {
+          const canvas = holder.querySelector("canvas");
+          const a = document.createElement("a");
+          a.href = canvas.toDataURL("image/png");
+          a.download = "qr-" + e.empNo + ".png";
+          a.click();
+        };
+        qrBox.append(holder, document.createElement("br"), bDl);
+        bQr.textContent = "Hide QR";
+      };
+
+      const bOpen = document.createElement("button");
+      bOpen.className = "alt"; bOpen.textContent = "Open page";
+      bOpen.onclick = () => window.open(link, "_blank");
+
+      const bDel = document.createElement("button");
+      bDel.className = "alt del"; bDel.textContent = "Delete";
+      bDel.onclick = async () => {
+        if (confirm("Delete " + e.name + "? Their QR code will stop working.")) await deleteDoc(doc(db, "employees", d.id));
+      };
+
+      row.append(title, linkEl, bCopy, bQr, bOpen, bDel, qrBox);
+      list.appendChild(row);
+    });
+  });
+}
+</script>
+</body>
+</html>
