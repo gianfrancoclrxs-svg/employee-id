@@ -87,6 +87,7 @@ const firebaseConfig = {
   measurementId: "G-WKF5VG8F0X"
 };
 
+
 // Username is turned into an email for Firebase Auth, e.g. admingian@id.local
 const EMAIL_DOMAIN = "id.local";
 
@@ -107,7 +108,7 @@ $("loginBtn").onclick = async () => {
   $("loginMsg").textContent = "";
   try {
     await signInWithEmailAndPassword(auth, $("user").value.trim() + "@" + EMAIL_DOMAIN, $("pass").value);
-  } catch (e) { $("loginMsg").textContent = "Wrong username or password."; }
+  } catch (e) { console.error(e); $("loginMsg").textContent = "Login failed: " + (e.code || e.message); }
 };
 $("logoutBtn").onclick = () => signOut(auth);
 
