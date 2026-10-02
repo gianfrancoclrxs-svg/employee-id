@@ -16,7 +16,12 @@
     background-attachment:fixed}
   .wrap{width:100%;max-width:420px}
   .id{background:var(--paper);border-radius:20px;box-shadow:0 20px 50px rgba(0,0,0,.55);overflow:hidden}
-  .head{background:linear-gradient(180deg,var(--red),var(--deep));padding:30px 20px;text-align:center}
+  .head{padding:30px 20px;text-align:center;
+    --s:70px;--c1:#d8111e;--c2:#7a0810;
+    --_g:var(--c2) 4% 14%,var(--c1) 14% 24%,var(--c2) 22% 34%,var(--c1) 34% 44%,var(--c2) 44% 56%,var(--c1) 56% 66%,var(--c2) 66% 76%,var(--c1) 76% 86%,var(--c2) 86% 96%;
+    background:radial-gradient(100% 100% at 100% 0,var(--c1) 4%,var(--_g),#0008 96%,#0000),
+      radial-gradient(100% 100% at 0 100%,#0000,#0008 4%,var(--_g),var(--c1) 96%) var(--c1);
+    background-size:var(--s) var(--s)}
   .head img{width:170px;max-width:65%;filter:drop-shadow(0 3px 6px rgba(0,0,0,.35));animation:fade .6s ease both}
   .stripe{height:4px;background:var(--gold)}
   .body{padding:26px 24px 22px}
@@ -144,7 +149,7 @@ function state(msg) { root.innerHTML = ""; root.appendChild(el("div", "state", m
       body.appendChild(s);
     }
 
-    card.append(body, el("div", "foot", "Kim3bee Lucky's Food Hauz, OPC"));
+    card.append(body, el("div", "foot", "K3B Lucky's Diner"));
     root.innerHTML = "";
     root.appendChild(card);
   } catch (err) {
